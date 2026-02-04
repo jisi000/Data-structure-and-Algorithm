@@ -68,3 +68,22 @@ def lcm(a, b):
     return abs(a * b) // gcd(a, b)
 ```
 
+不用OOP的简洁方法
+
+```python
+def gcd(a,b):
+    while b!=0:
+        a,b=b,a%b
+    return abs(a)
+def lcm(a,b):
+    return a*b//gcd(a,b)
+def reduction(a,b):
+    g=gcd(a,b)
+    return a//g,b//g
+n1,n2,n3,n4=map(int,input().split())
+c=lcm(n2,n4)
+b1,b2=c//n2,c//n4
+n=n1*b1+n3*b2
+n_n,n_d=reduction(n,c)
+print(f'{n_n}/{n_d}')
+```
