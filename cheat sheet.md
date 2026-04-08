@@ -72,7 +72,7 @@ class Solution:
 
 #### 二叉搜索树BST
 
-从有序数组建树（平衡二叉树）
+##### 从有序数组建树（平衡二叉树）
 
 ```python
 def sortedArrayToBST(self, nums: List[int]) -> Optional[TreeNode]:
@@ -85,7 +85,7 @@ def sortedArrayToBST(self, nums: List[int]) -> Optional[TreeNode]:
     return root
 ```
 
-从无序数组建树（不平衡）
+##### 从无序数组建树（不平衡）
 
 ```python
 class TreeNode:
@@ -106,6 +106,122 @@ root=None
 for n in nums:
     root=insert(root,n)
 ```
+
+##### 查找第K小的元素
+
+二叉搜索树的中序遍历就是正序的序列。可以直接用dfs中序遍历，按照索引查询，但这样需要遍历完整个树，时间长。
+
+使用中序遍历的迭代写法可以在找到时就终止遍历，缩短时间。
+
+```python
+# Definition for a binary tree node.
+# class TreeNode:
+#     def __init__(self, val=0, left=None, right=None):
+#         self.val = val
+#         self.left = left
+#         self.right = right
+class Solution:
+    def kthSmallest(self, root: Optional[TreeNode], k: int) -> int:
+        i=1
+        stack=[]
+        while stack or root:
+            while root:
+                stack.append(root)
+                root=root.left
+            node=stack.pop()
+            if i==k:
+                return node.val
+            i+=1
+            root=node.right
+```
+
+
+
+#### 哈夫曼编码树
+
+哈夫曼编码树是一种二叉树，根据字符使用频率(权值)生成，能根据字符出现频率为字符串编码，使总的编码长度最小。
+
+##### 规则
+
+确保哈夫曼编码树唯一性的生成规则是：
+
+选取最小的两个节点合并时，节点比大小的规则是:
+
+1) 权值小的节点算小。权值相同的两个节点，字符集里最小字符小的，算小。例如 （{'c','k'},12) 和 ({'b','z'},12)，后者小。
+2) 合并两个节点时，小的节点必须作为左子节点
+3) 连接左子节点的边代表0,连接右子节点的边代表1
+
+节点形式：每个节点都有变量和权值。叶子节点的变量是一个字母，权值是这个字母的权值。其余的各级根节点的权值是所有子节点的权值的总和，变量是一个子节点字母组成的有序字符串。
+
+##### 生成
+
+```python
+import heapq
+class Node:
+    def __init__(self,val='',weight=0):
+        self.val=val
+        self.weight=weight
+        self.left=None
+        self.right=None
+    def __lt__(self,other):
+        if self.weight==other.weight:
+            return self.val[0]<other.val[0]
+        return self.weight<other.weight
+heap=[]
+n=int(input())
+for _ in range(n):
+    st,fre=input().split()
+    node=Node(st,int(fre))
+    heapq.heappush(heap,node)
+while len(heap)>1:
+    node1=heapq.heappop(heap)
+    node2=heapq.heappop(heap)
+    n_st=''.join(sorted(list(node1.val+node2.val)))
+    n_node=Node(n_st,node1.weight+node2.weight)
+    n_node.left=node1
+    n_node.right=node2
+    heapq.heappush(heap,n_node)
+root=heap[0]
+```
+
+##### 编码（字符串->01串）
+
+```python
+def encode(s):
+    ans=''
+    re=root
+    for ch in s:
+        while re:
+            if ch in re.left.val:
+                ans+='0'
+                re=re.left
+            elif ch in re.right.val:
+                ans+='1'
+                re=re.right
+            if not re.left and not re.right:
+                break
+        re=root
+    return ans
+```
+
+##### 解码（01串->字符串）
+
+```python
+def decode(s):
+    ans=''
+    re=root
+    for ch in s:
+            if ch=='0':
+                re=re.left
+            elif ch=='1':
+                re=re.right
+            if not re.left and not re.right:
+                ans+=re.val
+                re=root
+    return ans
+```
+
+## 
 
 #### 树形DP
 
@@ -221,6 +337,70 @@ for _ in range(n):
 print(*ans)
 ```
 
+## 括号嵌套树
+
+括号嵌套树是一个用括号体现节点间的关系的字符串，其中二叉树会有*表示的空节点，遍历时需要去掉。
+
+#### 前序遍历
+
+括号嵌套树的前序遍历，就是字符串中节点值的顺序
+
+#### 中序遍历
+
+只有二叉树能这样遍历  OJ27637:括号嵌套二叉树
+
+```python
+n=int(input())
+for _ in range(n):
+    pre = []
+    stack = []
+    for ch in input():
+        if ch==')': #二叉树已知子节点数目，所以直接pop()
+            r=stack.pop()
+            stack.pop()
+            l=stack.pop()
+            stack.pop()
+            root=stack.pop()
+            stack.append(l+root+r)
+        else:
+            stack.append(ch)
+            if ch not in ['(',',']:
+                pre.append(ch)
+    pres=''.join(pre).replace('*','')
+    mid=''.join(stack).replace('*','')
+    print(pres)
+    print(mid)
+```
+
+#### 后序遍历
+
+多叉树和二叉树都可以这样遍历  OJ24729:括号嵌套树
+
+```python
+pre=[]
+stack=[]
+for ch in input():
+    if ch==')':
+        t=''
+        while stack: #多叉树不知道子节点数目，所以需要while循环
+            re=stack.pop()
+            if re=='(':
+                t=t+stack.pop()
+                break
+            if re!=',':
+                t=re+t
+        stack.append(t)
+    else:
+        if ch!=',':
+            stack.append(ch)
+            if ch!='(':
+                pre.append(ch)
+print(''.join(pre))
+print(''.join(stack))
+```
+
+
+
 ## 位运算
 
 移位（<< & >>）是很实用的操作，能更快的放缩数字
@@ -318,7 +498,7 @@ x.bit_count().统计二进制表示的x中‘1’的数量
 
 f'{n:0xxb}'规定二进制数的位数为xx，不足的用0补全
 
-## 回文串
+## Manacher算法（寻找回文串）
 
 找出字符串中的子回文串效率最高的Manacher算法
 
@@ -364,7 +544,7 @@ def pal(s):
     return True
 ```
 
-## 逆序对
+## 逆序对统计
 
 #### merge sort
 
@@ -418,9 +598,65 @@ for x in range(len(arr)-1,-1,-1):
     t.update(arr[x],1)
 ```
 
-## 状态压缩 DP 
+## 状态压缩 
 
-定义状态 dp[mask][i}：表示已访问城市集合为 mask（二进制数），当前位于城市 i 时的最短路径长度。 
+**用二进制字符串的0代表空位，1代表已存在，当全为1就是一个满位。但不用字符串的方式存储，而是以数字的形式，并用位运算进行状态改变和状态查询。**
+
+LC37.解数独 用状态压缩存储每行、每列、每个3*3矩阵中已有的1-9中的数字
+
+```python
+class Solution:
+    def solveSudoku(self, board: List[List[str]]) -> None:
+        """
+        Do not return anything, modify board in-place instead.
+        """
+        set_h=[0]*9
+        set_s=[0]*9
+        set_f=[[0]*3 for _ in range(3)]
+        for i in range(9):
+            for j in range(9):
+                num=board[i][j]
+                if num!='.':
+                    num=int(num)-1
+                    set_h[i]|=(1<<num)
+                    set_s[j]|=(1<<num)
+                    set_f[i//3][j//3]|=(1<<num)
+        def get_best():
+            m,n=-1,-1
+            mi=10
+            for i in range(9):
+                for j in range(9):
+                    if board[i][j]=='.':
+                        re=9-(set_h[i]|set_s[j]|set_f[i//3][j//3]).bit_count()
+                        if re<mi:
+                            mi=re
+                            m,n=i,j
+                            if re==1:
+                                return m,n
+            return m,n
+        def dfs():
+            i,j=get_best()
+            if i==j==-1:
+                return True
+            mask=set_h[i]|set_s[j]|set_f[i//3][j//3]
+            for c in range(9):
+                m=1<<c
+                if not m&mask:
+                    board[i][j]=str(c+1)
+                    set_h[i]|=m
+                    set_s[j]|=m
+                    set_f[i//3][j//3]|=m
+                    if dfs():
+                        return True
+                    set_h[i]^=m
+                    set_s[j]^=m
+                    set_f[i//3][j//3]^=m
+                    board[i][j]='.'
+            return False
+        dfs()
+```
+
+OJ30201：旅行商售货问题 用状态压缩存储已经到达过的城市
 
 ```python
 def s_c_dp(n,cost):
@@ -443,7 +679,7 @@ def s_c_dp(n,cost):
     return result
 ```
 
-## KMP算法
+## KMP算法（字符串匹配）
 
 KMP的原理是当前字符不匹配时，不放弃前面匹配好的结果。
 
@@ -775,3 +1011,219 @@ class Solution:
 ```
 
 由此可见，两个题目只有题目特异性操作不同，其他可以用完全相同的方法来做。
+
+## 单调队列/栈
+
+队列和栈中往往储存的是索引而非具体的数字，这样方便各种定位操作。
+
+这是一种便于查询某区间最大/最小值的数据结构，其单增（减）性有时也会有一定作用。
+
+其单调性的维护方式是，对于当前的数字，把前面不符合单调性的数字都pop出去，形成保证含有当前元素的单调序列。
+
+#### 一个单调栈
+
+OJ27205：护林员盖房子又来了
+
+单调递增栈，计算最大全0矩形面积。可以把它看作m个高度数组，按行依次计算。
+
+核心就是当栈单调递增时，左边的高度都可以向右边延伸。
+
+```python
+m,n=map(int,input().split())
+forest=[list(map(int,input().split())) for _ in range(m)]
+height=[0]*n
+ans=0
+for i in range(m):
+    height=[h+1 if loc==0 else 0 for h,loc in zip(height,forest[i])]
+    stack=[]
+    for j in range(n+1):
+        he=height[j] if j<n else -1
+        while stack and height[stack[-1]]>he:
+            h=height[stack.pop()]
+            w=j-stack[-1]-1 if stack else j
+            ans=max(ans,h*w)
+        stack.append(j)
+print(ans)
+```
+
+LC239.滑动窗口最大值
+
+这里虽然有两个队列，但只有一个是单调递减队列，另一个仅仅是辅助队列，维持两个队列长度相等。
+
+核心是单减队列使得滑动窗口内最大的数永远在最左边。辅助队列用于窗口滑动。
+
+```python
+class Solution:
+    def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
+        from collections import deque
+        queue=deque()
+        l=deque()
+        for num in nums[:k]:
+            re=0
+            while queue and queue[-1]<num:
+                queue.pop()
+                re+=(l.pop()+1)
+            queue.append(num)
+            l.append(re)
+        ans=[queue[0]]
+        for num in nums[k:]:
+            re=0
+            while queue and queue[-1]<num:
+                queue.pop()
+                re+=(l.pop()+1)
+            queue.append(num)
+            l.append(re)
+            if l[0]>0:
+                l[0]-=1
+            else:
+                l.popleft()
+                queue.popleft()
+            ans.append(queue[0])
+        return ans
+```
+
+
+
+#### 两个单调队列/栈
+
+**一般是一个单增，一个单减。**两个单调栈能解决更复杂的问题
+
+OJ30102：完美交易窗口
+
+用两个单调栈，一个单减，一个严格单增。每次以当前值为卖出点。单减栈的末端是前面第一个更大的数字l，严格单增栈中l后面的第一个索引就是这个区间的最小值。这里体现了栈中存放索引的重要性。
+
+```python
+import sys,bisect
+data=list(map(int,sys.stdin.read().split()))
+n=data[0]
+mx_stack=[]
+mi_stack=[]
+ans=0
+for i,num in enumerate(data[1:]):
+    while mx_stack and data[mx_stack[-1]+1]<num:
+        mx_stack.pop()
+    l=mx_stack[-1] if mx_stack else -1
+    while mi_stack and data[mi_stack[-1]+1]>=num:
+        mi_stack.pop()
+    if mi_stack:
+        real_l=bisect.bisect_right(mi_stack,l)
+        if real_l<len(mi_stack):
+            j=mi_stack[real_l]
+            ans=max(ans,i-j+1)
+    mx_stack.append(i)
+    mi_stack.append(i)
+print(ans)
+```
+
+LGP2698.Flowerpot S
+
+维护y值的单增队列和单减队列。每次以当前位置为右边界，寻找符合要求的左边界。因为左边界可能更大也可能更小，因此需要两个队列。
+
+```python
+from collections import deque
+N,D=map(int,input().split())
+drop=[]
+for _ in range(N):
+    drop.append(tuple(map(int,input().split())))
+drop.sort()
+mi_que=deque()
+mx_que=deque()
+ans=float('inf')
+for i,loi in enumerate(drop):
+    xi,yi=loi
+    while mi_que and yi<=drop[mi_que[-1]][1]:
+        mi_que.pop()
+    mi_que.append(i)
+    while mx_que and yi>=drop[mx_que[-1]][1]:
+        mx_que.pop()
+    mx_que.append(i)
+    while mi_que and yi-drop[mi_que[0]][1]>=D:
+        ans=min(ans,xi-drop[mi_que[0]][0])
+        mi_que.popleft()
+    while mx_que and drop[mx_que[0]][1]-yi>=D:
+        ans=min(ans,xi-drop[mx_que[0]][0])
+        mx_que.popleft()
+print(ans if ans!=float('inf') else -1)
+```
+
+## DP
+
+环形打家劫舍
+
+LC3892.产生至少K个峰值的最小操作次数
+
+```python
+class Solution:
+    def solve(self,a,k):
+        n=len(a)
+        dp=[[0]*n for _ in range(k+1)]
+        for i in range(1,k+1):
+            dp[i][0]=dp[i][1]=float('inf')
+        ops=[max(max(a[i-1],a[i+1])-a[i]+1,0) for i in range(1,n-1)]
+        for left in range(1,k+1):
+            for i in range(1,n-1):
+                not_choose=dp[left][i]
+                choose=dp[left-1][i-1]+ops[i-1]
+                dp[left][i+1]=min(not_choose,choose)
+        return dp[k][n-1]
+    def minOperations(self, nums: list[int], k: int) -> int:
+        n=len(nums)
+        if k>n//2:
+            return -1
+        cnt=0
+        for i in range(n):
+            if nums[i-1]<nums[i]>nums[(i+1)%n]:
+                cnt+=1
+        if cnt>=k:
+            return 0
+        ans1=self.solve([nums[-1]]+nums,k)
+        ans2=self.solve(nums+[nums[0]],k)
+        return min(ans1,ans2)
+```
+
+可以跳过两次的土豪购物
+
+LC3418.机器人可以获得的最大金币数
+
+因为可以“感化”两次，因此需要三个dp数组，代表“感化”0次，1次，2次的最大金币数。
+
+```python
+class Solution:
+    def maximumAmount(self, coins: List[List[int]]) -> int:
+        r,c=len(coins),len(coins[0])
+        dp0=[[float('-inf')]*c for _ in range(r)]
+        dp1=[[float('-inf')]*c for _ in range(r)]
+        dp2=[[float('-inf')]*c for _ in range(r)]
+        if coins[0][0]<0:
+            dp0[0][0]=coins[0][0]
+            dp1[0][0]=dp2[0][0]=0
+        else:
+            dp0[0][0]=dp1[0][0]=dp2[0][0]=coins[0][0]
+        for i in range(1,r):
+            dp0[i][0]=dp0[i-1][0]+coins[i][0]
+            if coins[i][0]<0:
+                dp1[i][0]=max(dp1[i-1][0]+coins[i][0],dp0[i-1][0])
+                dp2[i][0]=max(dp2[i-1][0]+coins[i][0],dp1[i-1][0])
+            else:
+                dp1[i][0]=dp1[i-1][0]+coins[i][0]
+                dp2[i][0]=dp2[i-1][0]+coins[i][0]
+        for j in range(1,c):
+            dp0[0][j]=dp0[0][j-1]+coins[0][j]
+            if coins[0][j]<0:
+                dp1[0][j]=max(dp1[0][j-1]+coins[0][j],dp0[0][j-1])
+                dp2[0][j]=max(dp2[0][j-1]+coins[0][j],dp1[0][j-1])
+            else:
+                dp1[0][j]=dp1[0][j-1]+coins[0][j]
+                dp2[0][j]=dp2[0][j-1]+coins[0][j]
+        for i in range(1,r):
+            for j in range(1,c):
+                dp0[i][j]=max(dp0[i-1][j],dp0[i][j-1])+coins[i][j]
+                if coins[i][j]<0:
+                    dp1[i][j]=max(dp0[i-1][j],dp0[i][j-1],dp1[i-1][j]+coins[i][j],dp1[i][j-1]+coins[i][j])
+                    dp2[i][j]=max(dp1[i-1][j],dp1[i][j-1],dp2[i-1][j]+coins[i][j],dp2[i][j-1]+coins[i][j])
+                else:
+                    dp1[i][j]=max(dp1[i-1][j],dp1[i][j-1])+coins[i][j]
+                    dp2[i][j]=max(dp2[i-1][j],dp2[i][j-1])+coins[i][j]
+        return dp2[-1][-1]
+```
+
