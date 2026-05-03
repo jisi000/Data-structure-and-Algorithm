@@ -72,6 +72,8 @@ class Solution:
 
 #### 二叉搜索树BST
 
+对二叉搜索树的每个节点而言，它左子节点比它小，右子节点比它大
+
 ##### 从有序数组建树（平衡二叉树）
 
 ```python
@@ -221,7 +223,7 @@ def decode(s):
     return ans
 ```
 
-## 
+
 
 #### 树形DP
 
@@ -246,7 +248,50 @@ for i in range(N-1,-1,-1):
 print(max(dp1[0],dp2[0]))
 ```
 
-例2：CF2195E-Idiot First Search（遍历式dp）
+##### 多叉树的树形dp
+
+遍历树，记录所有节点的深度，推导dp表时从深向浅计算，保证先计算子节点再计算父节点。
+
+dp1记录使用当前节点的最大值，dp2记录不使用当前节点呃最大值。遍历子节点统计dp1对应的子节点最大值c1和dp2对应的子节点最大值c2。c1只可以从dp2中取值，c2可以从dp1和dp2中取值。因为r值有负数，所以取值时如果是负数就不取（表示为+0）
+
+```python
+n=int(input())
+r=[0]+list(map(int,[input() for _ in range(n)]))
+graph=[[] for _ in range(n+1)]
+depth=[]
+father=[0]*(n+1)
+for _ in range(n-1):
+    l,k=map(int,input().split())
+    father[l]=k
+    graph[k].append(l)
+root=0
+for t in range(1,n+1):
+    if father[t]==0:
+        root=t
+        break
+stack=[(root,0)]
+while stack:
+    node,dep=stack.pop()
+    if len(depth)<dep+1:
+        depth.append([])
+    depth[dep].append(node)
+    for child in graph[node]:
+        stack.append((child,dep+1))
+dp1=[float('-inf')]*(n+1)
+dp2=[float('-inf')]*(n+1)
+for nodes in depth[::-1]:
+    for node in nodes:
+        c1=0
+        c2=0
+        for child in graph[node]:
+            c1+=max(0,dp2[child])
+            c2+=max(0,dp1[child],dp2[child])
+        dp1[node]=r[node]+c1
+        dp2[node]=c2
+print(max(dp1[root],dp2[root]))
+```
+
+特例：CF2195E-Idiot First Search（遍历式dp）
 
 到达某节点，如果想进入其父节点，需要将这个节点的子节点全都遍历一遍。因此节点1到节点0的步数是最少的，只需要遍历所有节点。而其他节点的步数都是遍历自身所有子节点的步数加其父节点到节点0的步数加1。只需统计每个节点的父节点，和下面的所有子节点数（包括子节点的子节点）。状态转移方程：dp[i]=(dp[parent[i]]+1+(2*child_num[i]))
 
@@ -293,6 +338,175 @@ for _ in range(t):
     for i in seq:
         dp[i]=(dp[parent[i]]+1+(2*child_num[i]))%(10**9+7)
     print(*dp[1:])
+```
+
+## 最小生成树MST
+
+#### 建树方式
+
+##### Kruskal 算法（并查集）
+
+```python
+class UnionFind:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.rank = [0] * n
+
+    def find(self, x):
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        root_x, root_y = self.find(x), self.find(y)
+        if root_x == root_y:
+            return False #判断是否已经连通
+        if self.rank[root_x] < self.rank[root_y]:
+            self.parent[root_x] = root_y
+        elif self.rank[root_x] > self.rank[root_y]:
+            self.parent[root_y] = root_x
+        else:
+            self.parent[root_y] = root_x
+            self.rank[root_x] += 1
+        return True
+
+def kruskal(n, edges):
+    # edges: (weight, u, v)
+    edges.sort()
+    uf = UnionFind(n)
+    mst = []
+    total_weight = 0
+
+    for weight, u, v in edges:
+        if uf.union(u, v):
+            mst.append((u, v, weight))
+            total_weight += weight
+            if len(mst) == n - 1:
+                break
+    return mst, total_weight
+```
+
+##### Prim算法（堆）
+
+```python
+import heapq
+
+def prim(n, graph):
+    # graph: 邻接表，graph[u] = [(v, weight), ...]
+    visited = [False] * n
+    min_heap = [(0, 0, -1)]  # (weight, current_node, parent)
+    mst = []
+    total_weight = 0
+
+    while min_heap and len(mst) < n:
+        weight, u, parent = heapq.heappop(min_heap)
+        if visited[u]:
+            continue
+        visited[u] = True
+        if parent != -1:
+            mst.append((parent, u, weight))
+            total_weight += weight
+        for v, w in graph[u]:
+            if not visited[v]:
+                heapq.heappush(min_heap, (w, v, u))
+    return mst, total_weight
+```
+
+#### 不平等边的问题
+
+对于 OJ30313：0-W最小生成树 和 LC3600.升级后最大生成树的稳定性 这类问题
+
+他们都存在两类边，第一类因为没有权值或者必须选用所以可以直接连接，第二类是需要做出最优选择的边。
+
+思路是：
+
+0.这类题一般需要使用并查集辅助判环，统计编号，即使用Kruskal算法
+
+1.连接第一类边，然后把每个连接好的模块视为一个整体，对他们重新编号
+
+2.对这些新的集合节点使用Kruskal算法建树
+
+以0-W最小生成树为例，LC的题只需在此基础加判环和判断是否成树
+
+```python
+class UnionFind:
+    def __init__(self, N):
+        self.parent = list(range(N))
+        self.rank = [0] * N
+        self.n=N
+
+    def find(self, x):
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])
+        return self.parent[x]
+
+    def union(self, x, y):
+        root_x, root_y = self.find(x), self.find(y)
+        if root_x == root_y:
+            return False
+        if self.rank[root_x] < self.rank[root_y]:
+            self.parent[root_x] = root_y
+        elif self.rank[root_x] > self.rank[root_y]:
+            self.parent[root_y] = root_x
+        else:
+            self.parent[root_y] = root_x
+            self.rank[root_x] += 1
+        return True
+    def count(self):  #统计新的编号
+        switch_id={}
+        count=0
+        for i in range(self.n):
+            root=self.find(i)
+            if root not in switch_id:
+                switch_id[root]=count
+                count+=1
+        return switch_id,count
+
+from collections import deque,defaultdict
+n,m=map(int,input().split())
+uf1=UnionFind(n)
+edges=[]
+assign=defaultdict(set)
+for _ in range(m):
+    u,v,w=map(int,input().split())
+    edges.append((w,u-1,v-1))
+    assign[u-1].add(v-1)
+    assign[v-1].add(u-1)
+unvisited=set(range(n))
+while unvisited: #连接无权边
+    start=unvisited.pop()
+    queue=deque([start])
+    while queue:
+        u=queue.popleft()
+        re=list(unvisited)
+        for v in re:
+            if v not in assign[u]:
+                uf1.union(u,v)
+                unvisited.remove(v)
+                queue.append(v)
+com_id,com_count=uf1.count()
+uf2=UnionFind(com_count)
+edges.sort()
+total_weight=0
+for w,u,v in edges: #连接有权边
+    c_u=com_id[uf1.find(u)]
+    c_v=com_id[uf1.find(v)]
+    if uf2.union(c_u,c_v):
+        total_weight+=w
+        com_count-=1
+        if com_count==1:
+            break
+print(total_weight)
+```
+
+判环
+
+```python
+for s,u,v in edges1:
+        if uf1.union(u,v):
+            ans=min(ans,s)
+        else:
+            return -1
 ```
 
 
@@ -1226,4 +1440,522 @@ class Solution:
                     dp2[i][j]=max(dp2[i-1][j],dp2[i][j-1])+coins[i][j]
         return dp2[-1][-1]
 ```
+
+## LCA(最近共同祖先)
+
+#### RMQ（最快）
+
+根据定理，用dfs遍历的树，遍历序在两个节点之间的最浅父节点就是他们的最近共同祖先，最浅父节点的dn值最小。
+
+因此，我们需要记录每个节点的遍历序dn ，st[k] [j]代表遍历序起点为j，长度为2**k的区间中最浅父节点。先把dfs遍历所有节点，赋予dn值，记录直接父节点。然后动态规划推导出st表。查找时，计算区间长度，把区间分为两部分找最小值。
+
+为了避免在最近共同祖先是某个节点本身是错误的输出了他的父节点，区间左端点需要+1
+
+```python
+import sys
+def main():
+    data = list(map(int, sys.stdin.read().split()))
+    idx = 0
+    N = data[idx]; idx += 1
+    M = data[idx]; idx += 1
+    S = data[idx]; idx += 1
+    num = 5 * 10**5 + 1
+    graph = [[] for _ in range(num)]
+    for _ in range(N-1):
+        x = data[idx]
+        y = data[idx+1]
+        graph[x].append(y)
+        graph[y].append(x)
+        idx += 2
+    LOG = 19
+    dfn = [0] * num
+    st = [[0]*(N+1) for _ in range(LOG)]
+    dn = 0
+    stack = [(S, 0)]
+    vis = [False] * num
+    while stack:
+        node, father = stack.pop()
+        if vis[node]:
+            continue
+        vis[node] = True
+        dn += 1
+        dfn[node] = dn
+        st[0][dn] = father
+        for child in reversed(graph[node]):
+            if child != father and not vis[child]:
+                stack.append((child, node))
+    def get(m, n):
+        return m if dfn[m] < dfn[n] else n
+    for k in range(1, LOG):
+        for j in range(1, N - (1 << k) + 2):
+            st[k][j] = get(st[k-1][j], st[k-1][j + (1 << (k-1))])
+    def lca(a, b):
+        if a == b:
+            return a
+        a, b = dfn[a], dfn[b]
+        if a > b:
+            a, b = b, a
+        a += 1
+        l = b - a + 1
+        d = l.bit_length() - 1
+        return get(st[d][a], st[d][b - (1 << d) + 1])
+    output = []
+    for _ in range(M):
+        output.append(str(lca(data[idx], data[idx+1])))
+        idx += 2
+    print('\n'.join(output))
+if __name__ == "__main__":
+    main()
+```
+
+#### 倍增法
+
+遍历时记录所有节点的深度，up[k] [u] 代表节点u向上走2**k步到达的节点。用动态规划推导出up表。查找时，把深度的的节点向上跳，直到与另一个节点深度相同，再把两个节点共同跳到深度最小的不同节点。这个节点的父节点就是最近共同祖先。
+
+为了避免再最近共同祖先时某个节点本身时错误的输出了他的父节点，当两个节点位于同一高度时，如果两个节点时同一节点，直接返回
+
+```python
+import sys
+def main():
+    data = list(map(int, sys.stdin.read().split()))
+    idx = 0
+    N = data[idx]; idx += 1
+    M = data[idx]; idx += 1
+    S = data[idx]; idx += 1
+    LOG = 19
+    graph = [[] for _ in range(N + 1)]
+    for _ in range(N - 1):
+        u = data[idx]
+        v = data[idx+1]
+        graph[u].append(v)
+        graph[v].append(u)
+        idx += 2
+    up = [[0]*(N+1) for _ in range(LOG)]
+    depth = [0]*(N+1)
+    stack = [(S, 0)]
+    while stack:
+        u, fa = stack.pop()
+        up[0][u] = fa
+        for v in graph[u]:
+            if v != fa:
+                depth[v] = depth[u] + 1
+                stack.append((v, u))
+    for k in range(1, LOG):
+        for u in range(1, N+1):
+            up[k][u] = up[k-1][ up[k-1][u] ]
+    def lca(u, v):
+        if depth[u] < depth[v]:
+            u, v = v, u
+        for k in range(LOG-1, -1, -1):
+            if depth[u] - (1 << k) >= depth[v]:
+                u = up[k][u]
+        if u == v:
+            return u
+        for k in range(LOG-1, -1, -1):
+            if up[k][u] != up[k][v]:
+                u = up[k][u]
+                v = up[k][v]
+        return up[0][u]
+    out = []
+    for _ in range(M):
+        u = data[idx]
+        v = data[idx+1]
+        out.append(str(lca(u, v)))
+        idx += 2
+    print('\n'.join(out))
+if __name__ == "__main__":
+    main()
+```
+
+##### 优化
+
+可以看出两个算法虽然底层逻辑不同，但在形式上相似度很高。使用以下三个共同的优化思路：
+
+1）由于python对二维列表的缓存方式是一行一行存，所以遍历时把先固定行，再查询列会比反过来更快，而我们每次都是先固定k，因此把k设为行。
+
+2）用栈模拟的dfs比用递归进行dfs更快。
+
+3）数据一次性读取，一次性输出，把主程序用main()函数封装。
+
+## 树状数组
+
+![树状数组入门树状数组教程树状数组详细讲解](https://pic.leetcode.cn/1717549976-yUVqsj-lc307.png)
+
+每个小区间的长度就是右端点的lowbit值。根据这个特征和图示就可以构建和使用树状数组。注意树状数组的索引从1开始。
+
+```python
+class NumArray:
+    def lowbit(self,x):
+        return x&-x
+
+    def __init__(self, nums: List[int]):
+        self.n=len(nums)
+        self.nums=nums
+        self.tree=[0]*(self.n+1)
+        for i,num in enumerate(nums,1):
+            self.tree[i]+=num
+            nxt=i+self.lowbit(i)
+            if nxt<=self.n:
+                self.tree[nxt]+=self.tree[i]
+    def update(self, index: int, val: int) -> None:
+        delta=val-self.nums[index]
+        self.nums[index]=val
+        index+=1
+        while index<=self.n:
+            self.tree[index]+=delta
+            index+=self.lowbit(index)
+
+    def get_pre(self,index:int) -> int:
+        index+=1
+        ans=0
+        while index>0:
+            ans+=self.tree[index]
+            index-=self.lowbit(index)
+        return ans
+
+    def sumRange(self, left: int, right: int) -> int:
+        return self.get_pre(right)-self.get_pre(left-1)
+
+
+# Your NumArray object will be instantiated and called as such:
+# obj = NumArray(nums)
+# obj.update(index,val)
+# param_2 = obj.sumRange(left,right)
+```
+
+## 堆
+
+默认是小顶堆，可以做到将最小的元素放在堆顶，随时弹出堆顶，加入新的元素。可以通过存储相反数来实现大顶堆。
+
+#### 列表模拟堆
+
+```python
+class Heap:
+    def __init__(self):
+        self.tree=[]
+    def down_to_up(self,i):
+        while (i-1)//2>=0:
+            if self.tree[i]<self.tree[(i-1)//2]:
+                self.tree[i],self.tree[(i-1)//2]=self.tree[(i-1)//2],self.tree[i]
+                i=(i-1)//2
+            else:
+                break
+    def up_to_down(self,i):
+        while i*2+1<len(self.tree):
+            if i*2+2>=len(self.tree):
+                child=i*2+1
+            else:
+                if self.tree[i*2+1]<=self.tree[i*2+2]:
+                    child=i*2+1
+                else:
+                    child=i*2+2
+            if self.tree[i]>self.tree[child]:
+                self.tree[i],self.tree[child]=self.tree[child],self.tree[i]
+                i=child
+            else:
+                break
+    def heappush(self,num):
+        self.tree.append(num)
+        self.down_to_up(len(self.tree)-1)
+    def heappop(self):
+        if not self.tree:
+            return None
+        self.tree[0],self.tree[-1]=self.tree[-1],self.tree[0]
+        ans=self.tree.pop()
+        self.up_to_down(0)
+        return ans
+heap=Heap()
+n=int(input())
+for _ in range(n):
+    l=list(map(int,input().split()))
+    if l[0]==1:
+        heap.heappush(l[1])
+    elif l[0]==2:
+        print(heap.heappop())
+```
+
+#### 双堆
+
+计算最小的前n个序列和
+
+在读取数据的过程中，动态维护截止到当前行元素的最小n个序列和的小顶堆。在计算下一个堆时，需要暂时构建一个大顶堆，便于将新的更小元素入堆，将最大的元素弹出。
+
+```python
+T=int(input())
+import heapq
+for _ in range(T):
+    m,n=map(int,input().split())
+    arr=list(map(int,input().split()))
+    heap=arr[:]
+    heapq.heapify(heap)
+    for _ in range(m-1):
+        n_arr=list(map(int,input().split()))
+        n_arr.sort()
+        n_heap=[]
+        while heap:
+            re_num=heapq.heappop(heap)
+            for num in n_arr:
+                n_num=re_num+num
+                if len(n_heap)<n:
+                    heapq.heappush(n_heap,-n_num)
+                else:
+                    if n_num<-n_heap[0]:
+                        heapq.heappop(n_heap)
+                        heapq.heappush(n_heap,-n_num)
+                    else:
+                        break
+        heap=[-x for x in n_heap]
+        heapq.heapify(heap)
+    heap.sort()
+    print(*heap)
+```
+
+
+
+## Tire（前缀树，字典树）
+
+```python
+class Node:
+    def __init__(self):
+        self.children={}
+        self.end=False
+class Trie:
+
+    def __init__(self):
+        self.root=Node()
+
+    def insert(self, word: str) -> None:
+        re=self.root
+        for ch in word:
+            if ch not in re.children:
+                re.children[ch]=Node()
+            re=re.children[ch]
+        re.end=True
+    def search(self, word: str) -> bool:
+        re=self.root
+        for ch in word:
+            if ch not in re.children:
+                return False
+            re=re.children[ch]
+        return re.end
+    def startsWith(self, prefix: str) -> bool:
+        re=self.root
+        for ch in prefix:
+            if ch not in re.children:
+                return False
+            re=re.children[ch]
+        return True
+
+
+# Your Trie object will be instantiated and called as such:
+# obj = Trie()
+# obj.insert(word)
+# param_2 = obj.search(word)
+# param_3 = obj.startsWith(prefix)
+```
+
+## 平衡二叉搜索树AVL
+
+节点的平衡值balance定义为左边最大深度减右边最大深度
+
+调整AVL的基本操作是左旋和右旋，如下图所示：
+
+左旋：
+
+```txt
+        z                         y
+       / \                       / \
+      T1  y       ----->        z   T3
+         / \                   / \
+        T2 T3                 T1 T2
+```
+
+右旋：
+
+```txt
+         y                    x
+        / \                  / \
+       x   T3    ----->     T1  y
+      / \                      / \
+     T1 T2                    T2 T3
+```
+
+当树失衡时，有以下四种情况
+
+左边深度大（balance>1）
+
+1.LL型
+
+新节点插入到了node的左子树的左侧（value<node.left.value)
+
+```txt
+         x                    y
+        /                    / \
+       y         ----->     z   x
+      / 
+     z
+```
+
+此时直接右旋。
+
+2.LR型
+
+新节点插入到了node的左子树右侧（value>node.left.value)
+
+```txt
+         y                    z
+        /                    / \
+       x         ----->     x   y
+        \                      
+         z                    
+```
+
+此时先对左子节点左旋，再整体右旋。
+
+右边深度大（balance<-1）
+
+3.RR型
+
+新节点插入到了node的右子树的右侧（value>node.right.value)
+
+```txt
+         x                     y
+          \                   / \
+           y      ----->     x   z
+            \   
+             z     
+```
+
+此时直接右旋。
+
+4.RL型
+
+新节点插入到了node的右子树的左侧（value<node.right.value)
+
+```txt
+        x                         z
+         \                       / \
+          y       ----->        x   y
+         /                     
+        z                      
+```
+
+此时先对右子节点右旋，再整体左旋。
+
+```python
+class Node:
+    def __init__(self,value):
+        self.value=value
+        self.left=None
+        self.right=None
+        self.height=1
+class AVL:
+    def __init__(self):
+        self.root=None
+    def insert(self,value):
+        self.root=self._insert(value,self.root)
+    def _insert(self,value,node):
+        if not node:
+            return Node(value)
+        elif value<node.value:
+            node.left=self._insert(value,node.left)
+        else:
+            node.right=self._insert(value,node.right)
+        node.height=1+max(self.get_height(node.left),self.get_height(node.right))
+        balance=self.get_balance(node)
+        if balance>1:
+            if value<node.left.value:
+                return self.rotate_right(node)
+            else:
+                node.left=self.rotate_left(node.left)
+                return self.rotate_right(node)
+        if balance<-1:
+            if value>node.right.value:
+                return self.rotate_left(node)
+            else:
+                node.right=self.rotate_right(node.right)
+                return self.rotate_left(node)
+        return node
+    def get_height(self,node):
+        if not node:
+            return 0
+        return node.height
+    def get_balance(self,node):
+        if not node:
+            return 0
+        return self.get_height(node.left)-self.get_height(node.right)
+    def rotate_left(self,z):
+        y=z.right
+        T2=y.left
+        y.left=z
+        z.right=T2
+        z.height=1+max(self.get_height(z.left),self.get_height(z.right))
+        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
+        return y
+    def rotate_right(self,y):
+        x=y.left
+        T2=x.right
+        x.right=y
+        y.left=T2
+        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
+        x.height=1+max(self.get_height(x.left),self.get_height(x.right))
+        return x
+```
+
+
+
+## 数学相关
+
+#### 欧式筛法
+
+筛选素数
+
+```python
+def euler_sieve(n):
+    is_prime=[True]*(n+1)
+    is_prime[0]=is_prime[1]=False
+    primes=[]
+    for i in range(2,n+1):
+        if is_prime[i]:
+            primes.append(i)
+        for p in ptimes:
+            if i*p>n:
+                break
+            is_primes[i*p]=False
+            if i%p==0:
+                break
+    return primes
+```
+
+#### 康托展开
+
+> 计算排列方式的顺序数
+
+对于P=[a1,a2,...,an]中全部元素的一种排列，其康托展开值x的计算公式为：
+
+x=a1(n-1)!+a2(n-2)!+......+an-11!+an0!
+
+其中ai是该位数字在剩余未使用数字中的排名（从0开始）
+
+#### Catalan数
+
+C0=1; C1=1; Cn=((4n-2)*Cn-1)//(n+1) 
+
+应用场景：有多少个合法出栈序列，合法括号序列数量，满节点二叉树数量，凸多边形的三角划分种类数，
+
+n个运算符的表达式加括号方式数，n*n网格只能向上或向右的不穿过对角线的路径数量
+
+#### 最大公约数GCD和最小公倍数LCM
+
+```python
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+def lcm(a, b):
+    return abs(a * b) // gcd(a, b)
+```
+
+
 
