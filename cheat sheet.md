@@ -70,6 +70,52 @@ class Solution:
         return ans
 ```
 
+#### dfs序
+
+二叉树的层序往往不利于对单个节点的子树进行处理，因为层序无法形成一个连续区间。dfs序（本质上是前序）在子树整体修改、寻找LCA上都有应用。
+
+对满二叉树而言：
+
+可以同时得到进入这个子树的时间（即子树根的dfs序）和离开这个子树的时间（即子树最右叶子节点的dfs序），得到该子树的区间
+
+```python
+def build_dfs_order(k):
+    n=(1<<k)-1
+    t_in=[0]*(n+1)
+    t_out=[0]*(n+1)
+    timer=[0]
+    def dfs(x):
+        timer[0]+=1
+        t_in[x]=timer[0]
+        if x<(1<<(k-1)):
+            dfs(2*x)
+            dfs(2*x+1)
+        t_out[x]=timer[0]
+    dfs(1)
+    return t_in,t_out
+```
+
+更通用的方法（对普通二叉树，或者多叉树都能用）
+
+```python
+dfn = [0] * num
+dn = 0
+stack = [(S,0)]
+vis = [False] * num
+while stack:
+    node, father = stack.pop()
+    if vis[node]:
+        continue
+    vis[node] = True
+    dn += 1
+    dfn[node] = dn
+    for child in reversed(graph[node]):
+        if child != father and not vis[child]:
+            stack.append((child, father)
+```
+
+
+
 #### 二叉搜索树BST
 
 对二叉搜索树的每个节点而言，它左子节点比它小，右子节点比它大
@@ -135,6 +181,154 @@ class Solution:
                 return node.val
             i+=1
             root=node.right
+```
+
+#### 平衡二叉搜索树AVL
+
+节点的平衡值balance定义为左边最大深度减右边最大深度
+
+调整AVL的基本操作是左旋和右旋，如下图所示：
+
+左旋：
+
+```txt
+        z                         y
+       / \                       / \
+      T1  y       ----->        z   T3
+         / \                   / \
+        T2 T3                 T1 T2
+```
+
+右旋：
+
+```txt
+         y                    x
+        / \                  / \
+       x   T3    ----->     T1  y
+      / \                      / \
+     T1 T2                    T2 T3
+```
+
+当树失衡时，有以下四种情况
+
+左边深度大（balance>1）
+
+1.LL型
+
+新节点插入到了node的左子树的左侧（value<node.left.value)
+
+```txt
+         x                    y
+        /                    / \
+       y         ----->     z   x
+      / 
+     z
+```
+
+此时直接右旋。
+
+2.LR型
+
+新节点插入到了node的左子树右侧（value>node.left.value)
+
+```txt
+         y                    z
+        /                    / \
+       x         ----->     x   y
+        \                      
+         z                    
+```
+
+此时先对左子节点左旋，再整体右旋。
+
+右边深度大（balance<-1）
+
+3.RR型
+
+新节点插入到了node的右子树的右侧（value>node.right.value)
+
+```txt
+         x                     y
+          \                   / \
+           y      ----->     x   z
+            \   
+             z     
+```
+
+此时直接右旋。
+
+4.RL型
+
+新节点插入到了node的右子树的左侧（value<node.right.value)
+
+```txt
+        x                         z
+         \                       / \
+          y       ----->        x   y
+         /                     
+        z                      
+```
+
+此时先对右子节点右旋，再整体左旋。
+
+```python
+class Node:
+    def __init__(self,value):
+        self.value=value
+        self.left=None
+        self.right=None
+        self.height=1
+class AVL:
+    def __init__(self):
+        self.root=None
+    def insert(self,value):
+        self.root=self._insert(value,self.root)
+    def _insert(self,value,node):
+        if not node:
+            return Node(value)
+        elif value<node.value:
+            node.left=self._insert(value,node.left)
+        else:
+            node.right=self._insert(value,node.right)
+        node.height=1+max(self.get_height(node.left),self.get_height(node.right))
+        balance=self.get_balance(node)
+        if balance>1:
+            if value<node.left.value:
+                return self.rotate_right(node)
+            else:
+                node.left=self.rotate_left(node.left)
+                return self.rotate_right(node)
+        if balance<-1:
+            if value>node.right.value:
+                return self.rotate_left(node)
+            else:
+                node.right=self.rotate_right(node.right)
+                return self.rotate_left(node)
+        return node
+    def get_height(self,node):
+        if not node:
+            return 0
+        return node.height
+    def get_balance(self,node):
+        if not node:
+            return 0
+        return self.get_height(node.left)-self.get_height(node.right)
+    def rotate_left(self,z):
+        y=z.right
+        T2=y.left
+        y.left=z
+        z.right=T2
+        z.height=1+max(self.get_height(z.left),self.get_height(z.right))
+        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
+        return y
+    def rotate_right(self,y):
+        x=y.left
+        T2=x.right
+        x.right=y
+        y.left=T2
+        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
+        x.height=1+max(self.get_height(x.left),self.get_height(x.right))
+        return x
 ```
 
 
@@ -291,53 +485,58 @@ for nodes in depth[::-1]:
 print(max(dp1[root],dp2[root]))
 ```
 
-特例：CF2195E-Idiot First Search（遍历式dp）
+#### 树的0-1背包dp
 
-到达某节点，如果想进入其父节点，需要将这个节点的子节点全都遍历一遍。因此节点1到节点0的步数是最少的，只需要遍历所有节点。而其他节点的步数都是遍历自身所有子节点的步数加其父节点到节点0的步数加1。只需统计每个节点的父节点，和下面的所有子节点数（包括子节点的子节点）。状态转移方程：dp[i]=(dp[parent[i]]+1+(2*child_num[i]))
-
-统计父节点很容易。统计子节点，需要等整棵树都构建好，自底向上计算。先对树进行层序遍历，再根据层序遍历结果的倒序，按方程计算。child_num[i]=child_num[nodes[i].left.val]+child_num[nodes[i].right.val]+2
-
-计算步数时，根据层序遍历顺序，保证计算到某个节点时，其父节点已经被计算完毕。
+在最大容量M的限制下，子节点受父节点的限制。scc合并所有自环后，需要一个虚拟根来归纳入度为0的节点。
 
 ```python
-from collections import deque
-class TreeNode:
-    def __init__(self,val):
-        self.val=val
-        self.left=None
-        self.right=None
-def layer(node):
-    queue=deque([node])
-    ans=[]
-    while queue:
-        re=queue.popleft()
-        ans.append(re.val)
-        if re.left:
-            queue.append(re.left)
-        if re.right:
-            queue.append(re.right)
-    return ans
-t=int(input())
-for _ in range(t):
-    n=int(input())
-    nodes=[TreeNode(x) for x in range(n+1)]
-    parent=[0]*(n+1)
-    child_num=[0]*(n+1)
-    for i in range(1,n+1):
-        l,r=map(int,input().split())
-        if l==r==0:
-            continue
-        parent[l]=parent[r]=i
-        nodes[i].left=nodes[l]
-        nodes[i].right=nodes[r]
-    seq=layer(nodes[1])
-    for i in seq[::-1]:
-        if nodes[i].left:
-            child_num[i]=child_num[nodes[i].left.val]+child_num[nodes[i].right.val]+2
-    dp=[0]*(n+1)
-    for i in seq:
-        dp[i]=(dp[parent[i]]+1+(2*child_num[i]))%(10**9+7)
-    print(*dp[1:])
+from collections import defaultdict
+def main():
+    it=data()
+    N=next(it)
+    M=next(it)
+    W=[0]+list(next(it) for _ in range(N))
+    V=[0]+list(next(it) for _ in range(N))
+    D=[0]+list(next(it) for _ in range(N))
+    G=[[] for _ in range(N+1)]
+    for u in range(1,N+1):
+        v=D[u]
+        if v!=0:
+            G[v].append(u)
+    sccs = tarjan_scc(G)
+    l=len(sccs)
+    scc_id = [0] * (N+1)
+    scc_w=[0]*l
+    scc_v=[0]*l
+    for i, comp in enumerate(sccs):
+        for node in comp:
+            scc_id[node] = i
+            if node!=0:
+                scc_w[i]+=W[node]
+                scc_v[i]+=V[node]
+    tree=defaultdict(set)
+    in_degree=[0]*l
+    for i in range(1,N+1):
+        u=scc_id[D[i]]
+        v=scc_id[i]
+        if u!=v:
+            tree[u].add(v)
+            in_degree[v]+=1
+    root=scc_id[0]
+    for i in range(l):
+        if i!=root and in_degree[i]==0:
+            tree[root].add(i)
+    dp=[[0]*(M+1) for _ in range(l)]
+    def dfs(u):
+        for i in range(scc_w[u],M+1):
+            dp[u][i]=scc_v[u]
+        for v in tree[u]:
+            dfs(v)
+            for j in range(M,scc_w[u]-1,-1):
+                for k in range(1,j-scc_w[u]+1):
+                    dp[u][j]=max(dp[u][j],dp[u][j-k]+dp[v][k])
+    dfs(root)
+    print(dp[root][M])
 ```
 
 ## 最小生成树MST
@@ -550,6 +749,84 @@ for _ in range(n):
     back_order(root)
 print(*ans)
 ```
+
+#### Tire（前缀树，字典树）
+
+tire就是一种多叉树
+
+```python
+class Node:
+    def __init__(self):
+        self.children={}
+        self.end=False
+class Trie:
+
+    def __init__(self):
+        self.root=Node()
+
+    def insert(self, word: str) -> None:
+        re=self.root
+        for ch in word:
+            if ch not in re.children:
+                re.children[ch]=Node()
+            re=re.children[ch]
+        re.end=True
+    def search(self, word: str) -> bool:
+        re=self.root
+        for ch in word:
+            if ch not in re.children:
+                return False
+            re=re.children[ch]
+        return re.end
+    def startsWith(self, prefix: str) -> bool:
+        re=self.root
+        for ch in prefix:
+            if ch not in re.children:
+                return False
+            re=re.children[ch]
+        return True
+
+
+# Your Trie object will be instantiated and called as such:
+# obj = Trie()
+# obj.insert(word)
+# param_2 = obj.search(word)
+# param_3 = obj.startsWith(prefix)
+```
+
+#### 0-1 Tire
+
+用于存储数字，可以找到数组中任取两个数异或计算后的最大值
+
+```python
+class Node:
+    def __init__(self):
+        self.children=[None,None]
+class Tire:
+    def __init__(self):
+        self.root=Node()
+    def insert(self,num):
+        re=self.root
+        for i in range(29,-1,-1):
+            bit=(num>>i)&1
+            if not re.children[bit]:
+                re.children[bit]=Node()
+            re=re.children[bit]
+    def get_max_xor(self,num):
+        re=self.root
+        max_xor=0
+        for i in range(29,-1,-1):
+            bit=(num>>i)&1
+            r_bit=1-bit
+            if re.children[r_bit]:
+                max_xor|=(1<<i)
+                re=re.children[r_bit]
+            else:
+                re=re.children[bit]
+        return max_xor
+```
+
+
 
 ## 括号嵌套树
 
@@ -1623,6 +1900,48 @@ class NumArray:
 # param_2 = obj.sumRange(left,right)
 ```
 
+数组中也不一定存储的是总和，也可以是极值
+
+OJ27093：排队又来了
+
+```python
+import bisect
+N,D=map(int,input().split())
+arr=list(map(int,input().split()))
+s=sorted(list(set(arr)))
+n=len(s)
+num_to_index={num:i+1 for i,num in enumerate(s)}
+def low_bit(x):
+    return x&-x
+def update(index,delta,tree):
+    while index<n:
+        tree[index]=max(tree[index],delta)
+        index+=low_bit(index)
+def query(index,tree):
+    result=-1
+    while index>0:
+        result=max(tree[index],result)
+        index-=low_bit(index)
+    return result
+tree_left=[-1]*(n+1)
+tree_right=[-1]*(n+1)
+l=[]
+for num in arr:
+    idx=num_to_index[num]
+    left=bisect.bisect_right(s,num-D-1)
+    right=bisect.bisect_left(s,num+D+1)
+    order=max(query(left,tree_left),query(n-right,tree_right))+1
+    if len(l)<order+1:
+        l.append([])
+    l[order].append(num)
+    update(idx,order,tree_left)
+    update(n-idx+1,order,tree_right)
+ans=[]
+for li in l:
+    ans.extend(sorted(li))
+print(*ans)
+```
+
 ## 堆
 
 默认是小顶堆，可以做到将最小的元素放在堆顶，随时弹出堆顶，加入新的元素。可以通过存储相反数来实现大顶堆。
@@ -1710,199 +2029,991 @@ for _ in range(T):
     print(*heap)
 ```
 
+## 拓扑排序
 
+每次弹出一个入度为0的最小节点，更新其连接节点的入度，然后再从头遍历，重复这个过程，直到所有节点都被弹出。
 
-## Tire（前缀树，字典树）
+关键在于“入度”概念的引入和入度的实时更新。每次都遍历是为了保证每次都找到最小的可用节点。
 
 ```python
-class Node:
-    def __init__(self):
-        self.children={}
-        self.end=False
-class Trie:
+v,a=map(int,input().split())
+d={i+1:[] for i in range(v)}
+ind=[0]*(v+1)
+for _ in range(a):
+    a,b=map(int,input().split())
+    d[a].append(b)
+    ind[b]+=1
+seq=[]
+while len(seq)<v:
+    for i in range(1,v+1):
+        if i not in seq and ind[i]==0:
+            seq.append(i)
+            for j in d[i]:
+                ind[j]-=1
+            break
+out=[f'v{x}' for x in seq]
+print(' '.join(out))
+```
 
-    def __init__(self):
-        self.root=Node()
+实际上这样每次都找最小可用节点的拓扑排序是最严格的情况，实际应用上也会有这样的顺序：
 
-    def insert(self, word: str) -> None:
-        re=self.root
-        for ch in word:
-            if ch not in re.children:
-                re.children[ch]=Node()
-            re=re.children[ch]
-        re.end=True
-    def search(self, word: str) -> bool:
-        re=self.root
-        for ch in word:
-            if ch not in re.children:
-                return False
-            re=re.children[ch]
-        return re.end
-    def startsWith(self, prefix: str) -> bool:
-        re=self.root
-        for ch in prefix:
-            if ch not in re.children:
-                return False
-            re=re.children[ch]
+Kahn算法
+
+按照节点入度归零的先后顺序，先归零的先使用，后归零的后使用
+
+```python
+from collections import defaultdict,deque
+n,m=map(int,input().split())
+ind=[0]*n
+d=defaultdict(list)
+for _ in range(m):
+    u,v=map(int,input().split())
+    ind[v]+=1
+    d[u].append(v)
+queue=deque()
+visited=set()
+for i in range(n):
+    if ind[i]==0:
+        queue.append(i)
+        visited.add(i)
+while queue:
+    re=queue.popleft()
+    for idx in d[re]:
+        ind[idx]-=1
+    for i in range(n):
+        if i not in visited and ind[i]==0:
+            queue.append(i)
+            visited.add(i)
+```
+
+## 启发式搜索（Warnsdorff 规则）
+
+> 在每一步选择下一个移动位置时，优先选择 **下一步可选位置最少** 的格子。
+> 这样可以减少回溯次数，大幅提升搜索速度。
+
+实现方法：在 `dfs` 中，对当前可走的 `(dx, dy)` 方向进行排序，按照“目标格子的下一步可走格子数”升序排序。
+
+```python
+n=int(input())
+start=tuple(map(int,input().split()))
+def dfs(loc,c):
+    if c==n**2:
         return True
-
-
-# Your Trie object will be instantiated and called as such:
-# obj = Trie()
-# obj.insert(word)
-# param_2 = obj.search(word)
-# param_3 = obj.startsWith(prefix)
+    x,y=loc
+    moves=[]
+    for dx,dy in d:
+        a,b=x+dx,y+dy
+        if 0<=a<n and 0<=b<n and not visited[a][b]:
+            cnt = 0
+            for ddx, ddy in d:
+                aa, bb = a + ddx, b + ddy
+                if 0 <= aa < n and 0 <= bb < n and not visited[aa][bb]:
+                    cnt += 1
+            moves.append((cnt, a, b))
+    moves.sort()
+    for cnt, a, b in moves:
+        visited[a][b] = True
+        if dfs((a, b), c + 1):
+            return True
+        visited[a][b] = False
+    return False
+d=[(2,1),(2,-1),(-2,1),(-2,-1),(1,2),(1,-2),(-1,2),(-1,-2)]
+visited=[[False]*n for _ in range(n)]
+visited[start[0]][start[1]]=True
+if dfs(start,1):
+    print('success')
+else:
+    print('fail')
 ```
 
-## 平衡二叉搜索树AVL
+## 强连通分量（SCC）
 
-节点的平衡值balance定义为左边最大深度减右边最大深度
+$$
+强连通分量 C 为最大的顶点子集 C ⊂ V ，其中对于每一对顶点v,w\in C，都有一条从v到w的路径和一条从w到v的路径。
+$$
 
-调整AVL的基本操作是左旋和右旋，如下图所示：
+#### Tarjan算法
 
-左旋：
+> 能以逆拓扑序输出SCC模块，即SCC缩点后得到的DAG（有向无环图）的逆拓扑序
 
-```txt
-        z                         y
-       / \                       / \
-      T1  y       ----->        z   T3
-         / \                   / \
-        T2 T3                 T1 T2
-```
+在 DFS 回溯过程中，判定 SCC 的标准是： **`dfn[u] == low[u]`**
 
-右旋：
+- **含义**：这表示 u 无法到达任何比自己更早的节点。
+- **结论**：u 是该 SCC 在 DFS 树中的**根节点**。此时，栈中位于 u 之上的所有节点共同构成一个完整的 SCC。
 
-```txt
-         y                    x
-        / \                  / \
-       x   T3    ----->     T1  y
-      / \                      / \
-     T1 T2                    T2 T3
-```
-
-当树失衡时，有以下四种情况
-
-左边深度大（balance>1）
-
-1.LL型
-
-新节点插入到了node的左子树的左侧（value<node.left.value)
-
-```txt
-         x                    y
-        /                    / \
-       y         ----->     z   x
-      / 
-     z
-```
-
-此时直接右旋。
-
-2.LR型
-
-新节点插入到了node的左子树右侧（value>node.left.value)
-
-```txt
-         y                    z
-        /                    / \
-       x         ----->     x   y
-        \                      
-         z                    
-```
-
-此时先对左子节点左旋，再整体右旋。
-
-右边深度大（balance<-1）
-
-3.RR型
-
-新节点插入到了node的右子树的右侧（value>node.right.value)
-
-```txt
-         x                     y
-          \                   / \
-           y      ----->     x   z
-            \   
-             z     
-```
-
-此时直接右旋。
-
-4.RL型
-
-新节点插入到了node的右子树的左侧（value<node.right.value)
-
-```txt
-        x                         z
-         \                       / \
-          y       ----->        x   y
-         /                     
-        z                      
-```
-
-此时先对右子节点右旋，再整体左旋。
+**缩点（Condensation）**： 如果你把每一个强连通分量（SCC）看成一个大的“超级节点”，那么原图就变成了一个**有向无环图（DAG）**。
 
 ```python
-class Node:
-    def __init__(self,value):
-        self.value=value
-        self.left=None
-        self.right=None
-        self.height=1
-class AVL:
-    def __init__(self):
-        self.root=None
-    def insert(self,value):
-        self.root=self._insert(value,self.root)
-    def _insert(self,value,node):
-        if not node:
-            return Node(value)
-        elif value<node.value:
-            node.left=self._insert(value,node.left)
-        else:
-            node.right=self._insert(value,node.right)
-        node.height=1+max(self.get_height(node.left),self.get_height(node.right))
-        balance=self.get_balance(node)
-        if balance>1:
-            if value<node.left.value:
-                return self.rotate_right(node)
-            else:
-                node.left=self.rotate_left(node.left)
-                return self.rotate_right(node)
-        if balance<-1:
-            if value>node.right.value:
-                return self.rotate_left(node)
-            else:
-                node.right=self.rotate_right(node.right)
-                return self.rotate_left(node)
-        return node
-    def get_height(self,node):
-        if not node:
-            return 0
-        return node.height
-    def get_balance(self,node):
-        if not node:
-            return 0
-        return self.get_height(node.left)-self.get_height(node.right)
-    def rotate_left(self,z):
-        y=z.right
-        T2=y.left
-        y.left=z
-        z.right=T2
-        z.height=1+max(self.get_height(z.left),self.get_height(z.right))
-        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
-        return y
-    def rotate_right(self,y):
-        x=y.left
-        T2=x.right
-        x.right=y
-        y.left=T2
-        y.height=1+max(self.get_height(y.left),self.get_height(y.right))
-        x.height=1+max(self.get_height(x.left),self.get_height(x.right))
-        return x
+def tarjan_scc(graph):
+    n = len(graph)
+    dfn = [-1] * n      # 访问顺序时间戳
+    low = [-1] * n      # 能追溯到的最小 dfn
+    stack = []          # 遍历中的节点收集栈
+    on_stack = [False] * n
+    sccs = []
+    timer = 0
+
+    def dfs(u):
+        nonlocal timer
+        dfn[u] = low[u] = timer
+        timer += 1
+        stack.append(u)
+        on_stack[u] = True
+
+        for v in graph[u]:
+            if dfn[v] == -1:    # 场景1：未访问过的树枝
+                dfs(v)
+                low[u] = min(low[u], low[v]) # 回溯时更新
+            elif on_stack[v]:   # 场景2：已访问且在当前路径中（回边）
+                low[u] = min(low[u], dfn[v])
+
+        # 判定：如果 u 是 SCC 的根
+        if low[u] == dfn[u]:
+            component = []
+            while True:
+                node = stack.pop()
+                on_stack[node] = False
+                component.append(node)
+                if node == u: break
+            sccs.append(component)
+
+    for i in range(n):
+        if dfn[i] == -1: dfs(i)
+    return sccs
+
+# 示例图定义：邻接表形式
+graph = [
+    [1],        # 节点0指向节点1
+    [2, 4],     # 节点1指向节点2和节点4
+    [3, 5],     # 节点2指向节点3和节点5
+    [0, 6],     # 节点3指向节点0和节点6
+    [5],        # 节点4指向节点5
+    [4],        # 节点5指向节点4
+    [7],        # 节点6指向节点7
+    [5, 6]      # 节点7指向节点5和节点6
+]
+sccs = tarjan_scc(graph)
+print("Strongly Connected Components:")
+for scc in sccs:
+    print(scc)
+
+"""
+Strongly Connected Components:
+[4, 5]
+[7, 6]
+[3, 2, 1, 0]
+"""
 ```
 
+#### DAG的构建
 
+```python
+sccs = tarjan_scc(graph)
+scc_id = [0] * n
+for i,comp in enumerate(sccs):
+    for node in comp:
+        scc_id[node] = i
+dag = defaultdict(set)
+for u in range(n):
+    for v in graph[u]:
+        if scc_id[u] != scc_id[v]:
+            dag[scc_id[u]].add(scc_id[v])
+```
+
+## Dijkstra 算法 
+
+使用条件：没有负权边
+
+可用于确定最短路径，它是一种循环算法，可以提供从一个顶点到其他所有顶点的最短路径。
+
+**贪心策略**：每次选择当前已知的最近点 u，因为所有边均为正，不可能通过更远的点绕回 u 产生更短的路径。
+
+```python
+import heapq
+
+def dijkstra(n, adj, start):
+    # adj[u] = [(v, weight), ...]
+    dist = [float('inf')] * n
+    dist[start] = 0
+    pq = [(0, start)] # (距离, 顶点)
+    
+    while pq:
+        d, u = heapq.heappop(pq)
+        
+        if d > dist[u]: 
+            continue # 已松弛过的陈旧记录
+        
+        for v, weight in adj[u]:
+            if dist[u] + weight < dist[v]:
+                dist[v] = dist[u] + weight
+                heapq.heappush(pq, (dist[v], v))
+    return dist
+```
+
+恢复路径
+
+```python
+last=[-1]*P
+    while pq:
+        d,u=heapq.heappop(pq)
+        if u==end:
+            path=[index_to_name[u]]
+            re=u
+            while re!=-1:
+                if re==start:
+                    break
+                v=last[re]
+                w=graph[re][v]
+                path.append(f'({w})')
+                path.append(index_to_name[v])
+                re=v
+            return path[::-1]
+            if w!=-1 and dist[u]+w<dist[v]:
+                dist[v]=dist[u]+w
+                heapq.heappush(pq,(dist[v],v))
+                last[v]=u
+```
+
+## Bellman-Ford 算法
+
+在 n 个点的图中，最短路径最多包含 n − 1 条边。
+
+- **V − 1 次松弛**：确保无论路径多长，都能通过逐层传递得到最优解。
+- **第 V 次检查**：如果还能更新，说明存在“负环”，路径权值可以无限低。
+
+```python
+def bellman_ford(graph, vertices, source):
+    dist = [float('inf')] * vertices
+    dist[source] = 0
+    
+    for i in range(vertices - 1):
+        new_dist = dist.copy()
+        updated = False
+        
+        for u, v, w in graph:
+            if dist[u] != float('inf') and dist[u] + w < new_dist[v]:
+                new_dist[v] = dist[u] + w
+                updated = True
+        
+        dist = new_dist
+        if not updated:
+            break
+    
+    new_dist = dist.copy()
+    for u, v, w in graph:
+        if dist[u] != float('inf') and dist[u] + w < new_dist[v]:
+            print("图中存在负权环！")
+            return None
+    
+    return dist
+```
+
+## Floyd算法
+
+```python
+INF = float('inf')
+n = 4
+# 初始化
+dist = [[INF] * n for _ in range(n)]
+
+# 自己到自己
+for i in range(n):
+    dist[i][i] = 0
+# 加边
+edges = [(0, 1, 3),(0, 2, 10),(1, 2, 4),]
+for u, v, w in edges:
+    dist[u][v] = w  
+# Floyd
+for k in range(n):
+    for i in range(n):
+        for j in range(n):
+            dist[i][j] = min(dist[i][j],dist[i][k] + dist[k][j])
+# 输出
+for row in dist:
+    print(row)
+```
+
+恢复路径
+
+```python
+nxt=[[-1]*n for _ in range(n)]
+for u, v, w in edges:
+    dist[u][v] = w
+	nxt[u][v]=v  
+for ...	
+    if dist[i][j] > dist[i][k] + dist[k][j]:
+		dist[i][j] = dist[i][k] + dist[k][j]
+ 		nxt[i][j] = nxt[i][k]
+
+def get_path(u, v):
+    if nxt[u][v] == -1:
+        return []
+    path = [u]
+    while u != v:
+        u = nxt[u][v]
+        path.append(u)
+    return path        
+```
+
+| 算法         | 功能       | 负边   | 复杂度       |
+| ------------ | ---------- | ------ | ------------ |
+| Dijkstra     | 单源最短路 | 不支持 | (O(m\log n)) |
+| Bellman-Ford | 单源最短路 | 支持   | (O(nm))      |
+| Floyd        | 全源最短路 | 支持   | (O(n^3))     |
+
+## 岛屿搜索
+
+岛屿相关的搜索题目往往需要两步，第一步是给独立岛屿上的陆地块打相同标记，第二步是以岛屿上任意点为起点搜索
+
+OJ30399：愉悦的假期
+
+```python
+from collections import deque
+n, m = map(int, input().split())
+grid = [list(input().strip()) for _ in range(n)]
+#1.打标记
+def dfs(start, mark):
+    stack = [start]
+    region = set()
+    while stack:
+        x, y = stack.pop()
+        if (x, y) not in region:
+            region.add((x, y))
+            grid[x][y] = mark
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < n and 0 <= ny < m and grid[nx][ny] == 'X':
+                    stack.append((nx, ny))
+    return region
+regions = []
+marks = ['0', '1', '2']
+idx = 0
+for i in range(n):
+    for j in range(m):
+        if grid[i][j] == 'X':
+            region = dfs((i, j), marks[idx])
+            regions.append(region)
+            idx += 1
+#以岛屿为起点搜索
+def bfs(region):
+    dist = [[float('inf')] * m for _ in range(n)]
+    queue = deque()
+    for x, y in region:
+        dist[x][y] = 0
+        queue.append((x, y))
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < n and 0 <= ny < m:
+                cost = dist[x][y] + (1 if grid[nx][ny] == '.' else 0)
+                if cost < dist[nx][ny]:
+                    dist[nx][ny] = cost
+                    queue.append((nx, ny))
+    return dist
+dists = [bfs(region) for region in regions]
+ans = float('inf')
+for i in range(n):
+    for j in range(m):
+        total = 0
+        for k in range(3):
+            total += dists[k][i][j]
+        if grid[i][j] == '.':
+            total -= 2
+        ans = min(ans, total)
+print(ans)
+```
+
+## 欧拉路径
+
+> **一条经过图中每条边恰好一次的路径**
+
+#### 欧拉回路
+
+要求：
+
+```
+每个点：
+入度 = 出度
+```
+
+------
+
+#### 欧拉链路
+
+要求：
+
+- 一个点：
+
+```
+出度 = 入度 + 1
+```
+
+（起点）
+
+- 一个点：
+
+```
+入度 = 出度 + 1
+```
+
+（终点）
+
+- 其它点：
+
+```
+入度 = 出度
+```
+
+```python
+from collections import defaultdict
+graph = defaultdict(list)
+edges = [(0, 1),(1, 3),(3, 2),(2, 0)]
+used = [False] * len(edges)
+for i, (u, v) in enumerate(edges):
+    graph[u].append((v, i))
+    graph[v].append((u, i))
+path = []
+#若存的是边
+def dfs(u):
+    while graph[u]:
+        v, eid = graph[u].pop()
+        if used[eid]:
+            continue
+        used[eid] = True
+        dfs(v)
+    path.append(u)
+dfs(0
+print(path[::-1])
+```
+
+## 关键路径（AOE）
+
+一种常见的关键路径算法是基于边活动（Activity On Edge, AOE）网的关键路径分析，其中活动被表示为带权的边集，事件被表示为顶点的有向图，边权表示完成活动需要的时间。
+
+**定义**：AOE网中从源点到汇点的**最长路径**。关键路径上的活动没有任何“松弛时间”。
+
+以下是基于 AOE 网络的关键路径算法的基本步骤：
+
+> 1. **拓扑序计算 v e (最早发生时间)**：$ve(v) = \max{ve(u) + weight(u, v)}$。
+> 2. **逆拓扑序计算 v l (最晚发生时间)**：$vl(u) = \min{vl(v) - weight(u, v)}$。
+> 3. **关键活动判定**：若 v e ( u ) == v l ( v ) − w e i g h t ( u , v )，该活动在关键路径上。
+
+```python
+import sys
+from collections import defaultdict, deque
+# 增加递归深度，防止复杂图结构导致崩溃
+sys.setrecursionlimit(10**6)
+
+class Edge:
+    def __init__(self, v, w):
+        self.v = v  # 边的终点
+        self.w = w  # 边的权重（活动耗时）
+
+def topo_sort(n, G, in_degree):
+    """
+    执行拓扑排序并计算每个事件的最早开始时间 ve
+    """
+    # 查找所有入度为 0 的点作为起点
+    q = deque([i for i in range(n) if in_degree[i] == 0])
+    ve = [0] * n
+    topo_order = []
+    while q:
+        u = q.popleft()
+        topo_order.append(u)
+        for edge in G[u]:
+            v = edge.v
+            # 更新最早开始时间：ve[v] = max(ve[v], ve[u] + weight)
+            if ve[u] + edge.w > ve[v]:
+                ve[v] = ve[u] + edge.w
+            in_degree[v] -= 1
+            if in_degree[v] == 0:
+                q.append(v)
+    # 判环：如果拓扑序列长度不等于 N，说明有环（AOE网不能有环）
+    if len(topo_order) == n:
+        return ve, topo_order
+    else:
+        return None, None
+
+def get_critical_path(n, G, in_degree):
+    """
+    计算关键路径的核心逻辑
+    """
+    # 步骤 1: 拓扑排序求 ve (最早发生时间)
+    ve, topo_order = topo_sort(n, G, in_degree)
+    if ve is None:
+        return -1, None
+    # 项目总工期即为 ve 中的最大值
+    maxLength = max(ve)
+    # 步骤 2: 反向推导求 vl (最晚发生时间)
+    # 初始化所有节点的最晚发生时间为总工期
+    vl = [maxLength] * n
+    # 按照拓扑序列的逆序进行更新
+    for u in reversed(topo_order):
+        for edge in G[u]:
+            v = edge.v
+            # 更新最晚开始时间：vl[u] = min(vl[u], vl[v] - weight)
+            if vl[v] - edge.w < vl[u]:
+                vl[u] = vl[v] - edge.w
+    # 步骤 3: 寻找关键活动并构建关键图
+    # 关键活动定义：活动的 e[i] == l[i]
+    # 即对应边 <u, v> 满足：ve[u] == vl[v] - weight
+    activity = defaultdict(list)
+    for u in range(n):
+        for edge in G[u]:
+            v = edge.v
+            e = ve[u]  # 活动最早开始时间
+            l = vl[v] - edge.w  # 活动最晚开始时间
+            if e == l:
+                activity[u].append(v)
+    return maxLength, activity
+
+def print_critical_path(u, activity, current_max, path=None):
+    """
+    递归打印所有关键路径
+    """
+    if path is None:
+        path = []
+    path.append(u)
+    # 终止条件：如果没有从 u 出发的关键活动，说明到达路径末端
+    if u not in activity or not activity[u]:
+        print(" -> ".join(map(str, path)))
+    else:
+        # 按节点编号排序输出，保证结果稳定性
+        for v in sorted(activity[u]):
+            print_critical_path(v, activity, current_max, path.copy())
+    path.pop()
+
+
+# --- Main Entry ---
+def main():
+    """
+    输入格式:
+    第一行: n(节点数) m(边数)
+    接下来的 m 行: u v w (起点 终点 权重)
+    """
+    input_data = sys.stdin.read().split()
+    if not input_data:
+        return
+    n = int(input_data[0])
+    m = int(input_data[1])
+    G = defaultdict(list)
+    in_degree = [0] * n
+    pointer = 2
+    for _ in range(m):
+        u = int(input_data[pointer])
+        v = int(input_data[pointer + 1])
+        w = int(input_data[pointer + 2])
+        G[u].append(Edge(v, w))
+        in_degree[v] += 1
+        pointer += 3
+    # 备份一份入度，因为拓扑排序会修改它
+    in_degree_copy = in_degree[:]
+    maxLength, activity = get_critical_path(n, G, in_degree_copy)
+    if maxLength == -1:
+        print("No (Graph contains a cycle)")
+    else:
+        print("Yes")
+        print(f"Critical Path Length: {maxLength}")
+        print("All Critical Paths:")
+        # 从所有入度为 0 的节点出发寻找路径
+        # 支持 多起点 和 多条关键路径 的搜索。
+        for i in range(n):
+            if in_degree[i] == 0:
+                print_critical_path(i, activity, maxLength)
+if __name__ == "__main__":
+    main()
+    
+"""
+测试用例 (Sample Input):
+6 8
+0 1 3
+0 2 2
+1 3 2
+1 4 3
+2 3 4
+2 5 1
+3 5 2
+4 5 1
+
+预期输出 (Expected Output):
+Yes
+Critical Path Length: 8
+All Critical Paths:
+0 -> 2 -> 3 -> 5
+"""
+```
+
+## 同余最短路
+
+判断是否存在 n=ax+by+cz
+
+```python
+import heapq
+import sys
+def solve():
+    data=sys.stdin.buffer.read().split()
+    if not data:
+        return
+    it=iter(data)
+    h=int(next(it))
+    x=int(next(it))
+    y=int(next(it))
+    z=int(next(it))
+    h-=1 #减去初始楼层，初始为0就不用减
+    d=[float('inf')]*x
+    visited=[False]*x
+    steps=[num for num in [x,y,z] if num!=0]
+    steps.sort()
+    x=steps[0]
+    
+    #路径较多，可选步长较少
+    d[0]=0
+    q=[(0,0)]
+    while q:
+        dist,u=heapq.heappop(q)
+        if visited[u]:
+            continue
+        visited[u]=True
+        for num in steps:
+            v=(u+num)%x
+            if d[v]>d[u]+num:
+                d[v]=d[u]+num
+                heapq.heappush(q,(d[v],v))
+    
+    
+    #路径较少，可选步长太多
+    e=[[] for _ in range(x)]
+    for i in range(x):
+        for num in steps[1:]:
+        	e[i].append(((i,num)%x,num))
+    d[0]=0
+    q=[(0,0)]
+    while q:
+        dist,u=heapq.heappop(q)
+        if visited[u]:
+            continue
+        visited[u]=True
+        for v,w in e[u]:
+            if d[v]>d[u]+w:
+                d[v]=d[u]+w
+                heapq.heappush(q,(d[v],v))
+                
+                
+    #统计能到的楼层数
+    ans=0
+    for i in range(x):
+        if h>=d[i]:
+            ans+=(h-d[i])//x+1
+    print(ans)
+    
+    
+    #判断楼层可及性
+    t=int(next(it))
+    for _ in range(t):
+        f=int(next(it)) #如果初始不在第0层需要减去
+        j=f%x
+        if f>=d[j]:
+            print('Yes')
+        else:
+            print('No')
+if __name__=='__main__':
+    solve()
+```
+
+## 最小斯坦纳树
+
+状态定义
+
+- i：当前树的根节点。
+- mask：一个二进制数，表示当前树已经连接了关键点集 S 中的哪些节点（第 j 位为 1 表示已连接第 j 个关键点）。
+- dp[i] [mask]：满足上述条件的最小边权和。
+
+1.同根合并：把一个点集拆成两个非空子集，遍历所有拆分情况，找到最小的边权和
+
+2.异根转移：以当前根节点、mask、权值和为基础，对与当前根节点连通的节点，都可以通过 新权值和=旧权值和+边权 来转移根。这样虽然扩大了权值和，但为图的连通打下基础。
+
+```python
+import heapq
+import sys
+def data():
+    for line in sys.stdin.buffer:
+        for token in line.split():
+            yield int(token)
+def main():
+    it=data()
+    n=next(it)
+    m=next(it)
+    k=next(it)
+    graph=[[] for _ in range(n+1)]
+    for _ in range(m):
+        u=next(it)
+        v=next(it)
+        w=next(it)
+        graph[u].append((v,w))
+        graph[v].append((u,w))
+    s=[]
+    for _ in range(k):
+        s.append(next(it))
+    num_states=1<<k
+    dp=[[float('inf')]*num_states for _ in range(n+1)]
+    for i,node in enumerate(s):
+        dp[node][1<<i]=0
+    for mask in range(1,num_states):
+        #同根合并
+        sub=(mask-1)&mask
+        while sub>0:
+            comp=mask^sub
+            if sub<comp:
+                break
+            for i in range(1,n+1):
+                val=dp[i][sub]+dp[i][comp]
+                if val<dp[i][mask]:
+                    dp[i][mask]=val
+            sub=(sub-1)&mask
+        #异根转移
+        pq=[]
+        for i in range(1,n+1):
+            if dp[i][mask]!=float('inf'):
+                heapq.heappush(pq,(dp[i][mask],i))
+        while pq:
+            d,u=heapq.heappop(pq)
+            if d>dp[u][mask]:
+                continue
+            for v,w in graph[u]:
+                if dp[u][mask]+w<dp[v][mask]:
+                    dp[v][mask]=dp[u][mask]+w
+                    heapq.heappush(pq,(dp[v][mask],v))
+    ans=min(dp[i][num_states-1] for i in range(1,n+1))
+    print(ans)
+if __name__=='__main__':
+    main()
+```
+
+## 带权并查集
+
+用dist数组记录节点的与根的距离
+
+```python
+import sys
+sys.setrecursionlimit(10**6)
+def data():
+    for line in sys.stdin.buffer:
+        for token in line.split():
+            yield int(token)
+def main():
+    it=data()
+    t=next(it)
+    for _ in range(t):
+        n=next(it)
+        m=next(it)
+        parent=list(range(n+1))
+        rank=[0]*(n+1)
+        dist=[0]*(n+1)
+        def find(x):
+            if parent[x]==x:
+                return x
+            root=find(parent[x])
+            dist[x]+=dist[parent[x]]
+            parent[x]=root
+            return root
+        ok=True
+        for _ in range(m):
+            a=next(it)
+            b=next(it)
+            d=next(it)
+            ra=find(a)
+            rb=find(b)
+            if ra==rb:
+                if dist[a]-dist[b]!=d:
+                    ok=False
+            else:
+                if rank[ra]>rank[rb]:
+                    parent[rb]=ra
+                    dist[rb]=dist[a]-dist[b]-d
+                elif rank[ra]<rank[rb]:
+                    parent[ra]=rb
+                    dist[ra]=dist[b]+d-dist[a]
+                else:
+                    parent[rb] = ra
+                    dist[rb] = dist[a] - dist[b] - d
+                    rank[ra]+=1
+        print('YES' if ok else 'NO')
+if __name__=='__main__':
+    main()
+```
+
+## 线段树
+
+递归实现，懒更新模板。可以用于动态维护和查询区间的和或者最值
+
+```python
+import sys
+sys.setrecursionlimit(10**6)
+class SegmentTree:
+    def __init__(self, data):
+        self.n = len(data)
+        # 推荐分配 4n 的空间以防止递归越界
+        self.tree = [0] * (4 * self.n)
+        self.lazy = [0] * (4 * self.n)
+        self.data = data
+        if self.n > 0:
+            self._build(1, 0, self.n - 1)
+        #初始为0就不需要_build
+
+    def _push_up(self, node):
+        """由下向上更新：父节点值 = 左孩子值 + 右孩子值"""
+        self.tree[node] = self.tree[node << 1] + self.tree[node << 1 | 1]
+        #最值
+        self.tree[node] = max(self.tree[2 * node], self.tree[2 * node + 1])
+
+    def _push_down(self, node, l, r):
+        """
+        由上向下传递标记：将当前节点的懒惰标记传递给左右孩子
+        l, r 为当前节点代表的区间范围
+        """
+        if self.lazy[node] != 0:
+            mid = (l + r) >> 1
+            v = self.lazy[node]
+            
+            # 更新左孩子：值增加 (左区间长度 * 增量)，标记累加
+            self.lazy[node << 1] += v
+            self.tree[node << 1] += v * (mid - l + 1)
+            #最值
+            self.tree[2 * node] += add_val
+            
+            # 更新右孩子：值增加 (右区间长度 * 增量)，标记累加
+            self.lazy[node << 1 | 1] += v
+            self.tree[node << 1 | 1] += v * (r - mid)
+            #最值
+            self.tree[2 * node + 1] += add_val
+            
+            # 传递完毕，清除当前节点的标记
+            self.lazy[node] = 0
+
+    def _build(self, node, l, r):
+        """构建线段树: O(n)"""
+        if l == r:
+            self.tree[node] = self.data[l]
+            return
+        mid = (l + r) >> 1
+        self._build(node << 1, l, mid)
+        self._build(node << 1 | 1, mid + 1, r)
+        self._push_up(node)
+
+    def update_range(self, l, r, val):
+        """外部接口：将区间 [l, r] 内每个元素都加上 val"""
+        self._update(1, 0, self.n - 1, l, r, val)
+
+    def _update(self, node, start, end, l, r, val):
+        """
+        内部逻辑：区间更新
+        start, end: 当前节点覆盖的范围
+        l, r: 目标更新范围
+        """
+        # 1. 当前区间完全被包含在目标区间内
+        if l <= start and end <= r:
+            self.tree[node] += val * (end - start + 1) # 更新当前节点值
+            self.lazy[node] += val                     # 打上标记
+            #最值
+            self.tree[node] += v
+            return
+        
+        # 2. 否则，需要下传标记并递归子树
+        self._push_down(node, start, end)
+        mid = (start + end) >> 1
+        if l <= mid:
+            self._update(node << 1, start, mid, l, r, val)
+        if r > mid:
+            self._update(node << 1 | 1, mid + 1, end, l, r, val)
+        
+        # 3. 最后向上更新当前节点
+        self._push_up(node)
+
+    def query_range(self, l, r):
+        """外部接口：查询区间 [l, r] 的和"""
+        return self._query(1, 0, self.n - 1, l, r)
+
+    def _query(self, node, start, end, l, r):
+        """
+        内部逻辑：区间查询
+        """
+        # 1. 当前区间完全在目标范围内
+        if l <= start and end <= r:
+            return self.tree[node]
+        
+        # 2. 下传标记
+        self._push_down(node, start, end)
+        mid = (start + end) >> 1
+        res = 0
+        if l <= mid:
+            res += self._query(node << 1, start, mid, l, r)
+        if r > mid:
+            res += self._query(node << 1 | 1, mid + 1, end, l, r)
+        return res
+    #查询区间最值
+    def query(self, node, start, end, l, r):
+        """区间查询：获取 [l, r] 范围内的最大值"""
+        if l <= start and end <= r:
+            return self.tree[node]
+        
+        mid = (start + end) // 2
+        self._push_down(node)
+        
+        res = -float('inf')
+        if l <= mid:
+            res = max(res, self.query(2 * node, start, mid, l, r))
+        if r > mid:
+            res = max(res, self.query(2 * node + 1, mid + 1, end, l, r))
+        return res
+
+```
+
+#### 排队问题
+
+对一个序列，有高度限制的换序，得到字典序最小的新序列
+
+例题：LG P8099 [USACO22JAN] Minimizing Haybales P ；OJ27093：排队又来了
+
+(这里为简便用了树状数组，原理与线段树类似)
+
+```python
+import bisect
+N,D=map(int,input().split())
+arr=list(map(int,input().split()))
+s=sorted(list(set(arr)))
+n=len(s)
+num_to_index={num:i+1 for i,num in enumerate(s)}
+def low_bit(x):
+    return x&-x
+def update(index,delta,tree):
+    while index<n:
+        tree[index]=max(tree[index],delta)
+        index+=low_bit(index)
+def query(index,tree):
+    result=-1
+    while index>0:
+        result=max(tree[index],result)
+        index-=low_bit(index)
+    return result
+tree_left=[-1]*(n+1)
+tree_right=[-1]*(n+1)
+l=[]
+for num in arr:
+    idx=num_to_index[num]
+    left=bisect.bisect_right(s,num-D-1)
+    right=bisect.bisect_left(s,num+D+1)
+    order=max(query(left,tree_left),query(n-right,tree_right))+1
+    if len(l)<order+1:
+        l.append([])
+    l[order].append(num)
+    update(idx,order,tree_left)
+    update(n-idx+1,order,tree_right)
+ans=[]
+for li in l:
+    ans.extend(sorted(li))
+print(*ans)
+```
 
 ## 数学相关
 
@@ -1925,6 +3036,17 @@ def euler_sieve(n):
             if i%p==0:
                 break
     return primes
+```
+
+分解质因数
+
+```python
+MX=1000001
+prime_factors=[[] for _ in range(MX)]
+for i in range(2,MX):
+    if not prime_factors[i]:
+        for j in range(i,MX,i):
+            prime_factors[j].append(i)
 ```
 
 #### 康托展开
@@ -1957,5 +3079,23 @@ def lcm(a, b):
     return abs(a * b) // gcd(a, b)
 ```
 
+## 高效读取输入数据
 
+这个方法时间复杂度和一次读取相近，空间复杂度和逐行读取相近
+
+```python
+def data():
+    for line in sys.stdin.buffer:
+        for token in line.split():
+            yield token
+def solve():
+    it=data()
+    try:
+        a=int(next(it)) #整数
+        b=float(next(it)) #浮点数
+        c=next(it).decode() #字符串
+        ......
+    except StopIteration:
+        pass #如果在循环内部，并且需要结束循环，就是break,不在循环里就需要使用pass
+```
 
